@@ -45,3 +45,54 @@ cp *.tar /tmp/
 aws s3 \
 cp /tmp/${name}-httpd-logs-${timestamp}.tar \
 s3://${s3_bucket}/${name}-httpd-logs-${timestamp}.tar
+
+# Check inventory.html exists in the "/var/www/html folder", if it is not found creates inventory file
+
+cd /var/www/html
+inventory_file="inventory.html"
+
+if test -f "$inventory_file"; then
+    echo "$inventory_file exist"
+else
+touch "$inventory_file"
+    if [ -s "$inventory_file" ]; then
+        echo "========================================="
+        echo "Headers already present"
+        echo "========================================="
+    else
+        # Adding headers for the inventory file
+        echo "Adding Headers : "
+        echo "======================================================================="
+        echo "Log Type	Time Created	Type	Size" > "$inventory_file"
+        echo "======================================================================="
+    fi
+fi
+
+cd /tmp/ # Creation of Entry in inventory file
+# Get the tar files by Date created from the tmp folder after each run of the script
+
+column_2=`ls -lrth /tmp | tail -1 | awk -F ' ' '{print $9}' | cut -d '-' -f 4,5 | cut -f1 -d '.'`
+# Get the size from tmp folder of all the tar files
+
+column_4=`ls -lrth /tmp | tail -1 | awk -F ' ' '{print $5}'`
+
+file_path="/var/www/html"
+file_name="inventory.html"
+echo "================================================================="
+echo "httpd-logs $column_2 tar $column_4" >> $file_path/$file_name
+echo "================================================================="
+
+# Crontab for scheduling jobs
+
+if (( $(crontab -l | grep "automation" | wc -l) >0 ))
+then
+echo "======================================="
+echo "Cron has already setup in the System."
+echo "======================================="
+else
+echo "Setting cronjob for every day"
+echo "====================================================================================="
+cat <(crontab -l) <(echo "55 23 * * * /root/Automation_Project/automation.sh") | crontab -
+echo "====================================================================================="
+fi
+echo "Thankyou !!! Execution Completed"
